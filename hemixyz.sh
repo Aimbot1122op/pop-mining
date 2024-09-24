@@ -1,26 +1,37 @@
 #!/bin/bash
 
+# Fetch logo
 curl -s https://raw.githubusercontent.com/zunxbt/logo/main/logo.sh | bash
 
 sleep 3
 
 ARCH=$(uname -m)
 
+# Function to display messages with new colors
 show() {
-    echo -e "\033[1;35m$1\033[0m"
+    echo -e "\033[1;34m$1\033[0m"  # Blue color
 }
 
+show_error() {
+    echo -e "\033[1;31m$1\033[0m"  # Red color for errors
+}
+
+show_success() {
+    echo -e "\033[1;32m$1\033[0m"  # Green color for success
+}
+
+# Check and install jq
 if ! command -v jq &> /dev/null; then
     show "jq not found, installing..."
     sudo apt-get update
     sudo apt-get install -y jq > /dev/null 2>&1
     if [ $? -ne 0 ]; then
-        show "Failed to install jq. Please check your package manager."
+        show_error "Failed to install jq. Please check your package manager."
         exit 1
     fi
 fi
 
-
+# Function to check for the latest version
 check_latest_version() {
     for i in {1..3}; do
         LATEST_VERSION=$(curl -s https://api.github.com/repos/hemilabs/heminetwork/releases/latest | jq -r '.tag_name')
@@ -28,52 +39,54 @@ check_latest_version() {
             show "Latest version available: $LATEST_VERSION"
             return 0
         fi
-        show "Attempt $i: Failed to fetch the latest version. Retrying..."
+        show_error "Attempt $i: Failed to fetch the latest version. Retrying..."
         sleep 2
     done
 
-    show "Failed to fetch the latest version after 3 attempts. Please check your internet connection or GitHub API limits."
+    show_error "Failed to fetch the latest version after 3 attempts. Please check your internet connection or GitHub API limits."
     exit 1
 }
 
 check_latest_version
 
-
 download_required=true
 
+# Check architecture and existence of downloaded version
 if [ "$ARCH" == "x86_64" ]; then
     if [ -d "heminetwork_${LATEST_VERSION}_linux_amd64" ]; then
         show "Latest version for x86_64 is already downloaded. Skipping download."
-        cd "heminetwork_${LATEST_VERSION}_linux_amd64" || { show "Failed to change directory."; exit 1; }
-        download_required=false  # Set flag to false
+        cd "heminetwork_${LATEST_VERSION}_linux_amd64" || { show_error "Failed to change directory."; exit 1; }
+        download_required=false
     fi
 elif [ "$ARCH" == "arm64" ]; then
     if [ -d "heminetwork_${LATEST_VERSION}_linux_arm64" ]; then
         show "Latest version for arm64 is already downloaded. Skipping download."
-        cd "heminetwork_${LATEST_VERSION}_linux_arm64" || { show "Failed to change directory."; exit 1; }
-        download_required=false  # Set flag to false
+        cd "heminetwork_${LATEST_VERSION}_linux_arm64" || { show_error "Failed to change directory."; exit 1; }
+        download_required=false
     fi
 fi
 
+# Download the required version if not already present
 if [ "$download_required" = true ]; then
     if [ "$ARCH" == "x86_64" ]; then
         show "Downloading for x86_64 architecture..."
         wget --quiet --show-progress "https://github.com/hemilabs/heminetwork/releases/download/$LATEST_VERSION/heminetwork_${LATEST_VERSION}_linux_amd64.tar.gz" -O "heminetwork_${LATEST_VERSION}_linux_amd64.tar.gz"
         tar -xzf "heminetwork_${LATEST_VERSION}_linux_amd64.tar.gz" > /dev/null
-        cd "heminetwork_${LATEST_VERSION}_linux_amd64" || { show "Failed to change directory."; exit 1; }
+        cd "heminetwork_${LATEST_VERSION}_linux_amd64" || { show_error "Failed to change directory."; exit 1; }
     elif [ "$ARCH" == "arm64" ]; then
         show "Downloading for arm64 architecture..."
         wget --quiet --show-progress "https://github.com/hemilabs/heminetwork/releases/download/$LATEST_VERSION/heminetwork_${LATEST_VERSION}_linux_arm64.tar.gz" -O "heminetwork_${LATEST_VERSION}_linux_arm64.tar.gz"
         tar -xzf "heminetwork_${LATEST_VERSION}_linux_arm64.tar.gz" > /dev/null
-        cd "heminetwork_${LATEST_VERSION}_linux_arm64" || { show "Failed to change directory."; exit 1; }
+        cd "heminetwork_${LATEST_VERSION}_linux_arm64" || { show_error "Failed to change directory."; exit 1; }
     else
-        show "Unsupported architecture: $ARCH"
+        show_error "Unsupported architecture: $ARCH"
         exit 1
     fi
 else
     show "Skipping download as the latest version is already present."
 fi
 
+# User input for wallet choice
 echo
 show "Select only one option:"
 show "1. Use new wallet for PoP mining"
@@ -81,12 +94,12 @@ show "2. Use existing wallet for PoP mining"
 read -p "Enter your choice (1/2): " choice
 echo
 
-
+# Wallet generation or existing wallet usage
 if [ "$choice" == "1" ]; then
     show "Generating a new wallet..."
     ./keygen -secp256k1 -json -net="testnet" > ~/popm-address.json
     if [ $? -ne 0 ]; then
-        show "Failed to generate wallet."
+        show_error "Failed to generate wallet."
         exit 1
     fi
     cat ~/popm-address.json
@@ -105,14 +118,13 @@ if [ "$choice" == "1" ]; then
             echo
         fi
     fi
-
 elif [ "$choice" == "2" ]; then
     read -p "Enter your Private key: " priv_key
     read -p "Enter static fee (numerical only, recommended: 100-200): " static_fee
     echo
 fi
 
-
+# Manage the systemd service
 if systemctl is-active --quiet hemi.service; then
     show "hemi.service is currently running. Stopping and disabling it..."
     sudo systemctl stop hemi.service
@@ -121,6 +133,7 @@ else
     show "hemi.service is not running."
 fi
 
+# Create the systemd service
 cat << EOF | sudo tee /etc/systemd/system/hemi.service > /dev/null
 [Unit]
 Description=Hemi Network popmd Service
@@ -142,4 +155,4 @@ sudo systemctl daemon-reload
 sudo systemctl enable hemi.service
 sudo systemctl start hemi.service
 echo
-show "PoP mining is successfully srtated"
+show_success "PoP mining has been successfully started!"
