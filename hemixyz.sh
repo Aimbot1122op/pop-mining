@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Fetch logo
-curl -s https://github.com/FEdanish/t3rn-node/blob/main/logo.sh | bash
+curl -s https://github.com/zunxbt/logo/blob/main/logo.sh | bash
 
 sleep 3
 
