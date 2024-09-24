@@ -7,9 +7,8 @@ sleep 3
 
 ARCH=$(uname -m)
 
-# Function to display messages with new colors
 show() {
-    echo -e "\033[1;34m$1\033[0m"  # Blue color
+    echo -e "\033[1;35m$1\033[0m"
 }
 
 show_error() {
