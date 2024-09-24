@@ -1,14 +1,15 @@
 #!/bin/bash
 
 # Fetch logo
-curl -s https://github.com/zunxbt/logo/blob/main/logo.sh | bash
+curl -s https://raw.githubusercontent.com/zunxbt/logo/main/logo.sh | bash
 
 sleep 3
 
 ARCH=$(uname -m)
 
+# Function to display messages in white
 show() {
-    echo -e "\033[1;35m$1\033[0m"
+    echo -e "\033[1;37m$1\033[0m"  # White color
 }
 
 show_error() {
@@ -17,6 +18,20 @@ show_error() {
 
 show_success() {
     echo -e "\033[1;32m$1\033[0m"  # Green color for success
+}
+
+# Function to display a spinner while waiting
+spinner() {
+    local pid=$1
+    local delay=0.1
+    local spin='/-\|'
+    local i=0
+    while ps -p $pid > /dev/null; do
+        i=$(( (i + 1) % 4 ))
+        printf "\r${spin:$i:1}  "
+        sleep $delay
+    done
+    printf "\r   \r"  # Clear the spinner
 }
 
 # Check and install jq
@@ -69,12 +84,14 @@ fi
 if [ "$download_required" = true ]; then
     if [ "$ARCH" == "x86_64" ]; then
         show "Downloading for x86_64 architecture..."
-        wget --quiet --show-progress "https://github.com/hemilabs/heminetwork/releases/download/$LATEST_VERSION/heminetwork_${LATEST_VERSION}_linux_amd64.tar.gz" -O "heminetwork_${LATEST_VERSION}_linux_amd64.tar.gz"
+        wget --quiet --show-progress "https://github.com/hemilabs/heminetwork/releases/download/$LATEST_VERSION/heminetwork_${LATEST_VERSION}_linux_amd64.tar.gz" -O "heminetwork_${LATEST_VERSION}_linux_amd64.tar.gz" &
+        spinner $!
         tar -xzf "heminetwork_${LATEST_VERSION}_linux_amd64.tar.gz" > /dev/null
         cd "heminetwork_${LATEST_VERSION}_linux_amd64" || { show_error "Failed to change directory."; exit 1; }
     elif [ "$ARCH" == "arm64" ]; then
         show "Downloading for arm64 architecture..."
-        wget --quiet --show-progress "https://github.com/hemilabs/heminetwork/releases/download/$LATEST_VERSION/heminetwork_${LATEST_VERSION}_linux_arm64.tar.gz" -O "heminetwork_${LATEST_VERSION}_linux_arm64.tar.gz"
+        wget --quiet --show-progress "https://github.com/hemilabs/heminetwork/releases/download/$LATEST_VERSION/heminetwork_${LATEST_VERSION}_linux_arm64.tar.gz" -O "heminetwork_${LATEST_VERSION}_linux_arm64.tar.gz" &
+        spinner $!
         tar -xzf "heminetwork_${LATEST_VERSION}_linux_arm64.tar.gz" > /dev/null
         cd "heminetwork_${LATEST_VERSION}_linux_arm64" || { show_error "Failed to change directory."; exit 1; }
     else
@@ -87,14 +104,14 @@ fi
 
 # User input for wallet choice
 echo
-show "Select one option:"
-show "a. Use new wallet for PoP mining"
-show "b. Use existing wallet for PoP mining"
-read -p "Select any one option (a/b): " choice
+show "Select only one option:"
+show "1. Use new wallet for PoP mining"
+show "2. Use existing wallet for PoP mining"
+read -p "Enter your choice (1/2): " choice
 echo
 
-# Wallet usage
-if [ "$choice" == "a" ]; then
+# Wallet generation or existing wallet usage
+if [ "$choice" == "1" ]; then
     show "Generating a new wallet..."
     ./keygen -secp256k1 -json -net="testnet" > ~/popm-address.json
     if [ $? -ne 0 ]; then
@@ -113,13 +130,13 @@ if [ "$choice" == "a" ]; then
         read -p "Have you requested faucet? (y/N): " faucet_requested
         if [[ "$faucet_requested" =~ ^[Yy]$ ]]; then
             priv_key=$(jq -r '.private_key' ~/popm-address.json)
-            read -p "Enter fee (100-200): " static_fee
+            read -p "Enter static fee (numerical only, recommended: 100-200): " static_fee
             echo
         fi
     fi
-elif [ "$choice" == "b" ]; then
-    read -p "Enter Private key: " priv_key
-    read -p "Enter fee (100-200): " static_fee
+elif [ "$choice" == "2" ]; then
+    read -p "Enter your Private key: " priv_key
+    read -p "Enter static fee (numerical only, recommended: 100-200): " static_fee
     echo
 fi
 
