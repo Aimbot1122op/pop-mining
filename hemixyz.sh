@@ -88,14 +88,14 @@ fi
 
 # User input for wallet choice
 echo
-show "Select only one option:"
-show "1. Use new wallet for PoP mining"
-show "2. Use existing wallet for PoP mining"
-read -p "Enter your choice (1/2): " choice
+show "Select one option:"
+show "a. Use new wallet for PoP mining"
+show "b. Use existing wallet for PoP mining"
+read -p "Select any one option (a/b): " choice
 echo
 
-# Wallet generation or existing wallet usage
-if [ "$choice" == "1" ]; then
+# Wallet usage
+if [ "$choice" == "a" ]; then
     show "Generating a new wallet..."
     ./keygen -secp256k1 -json -net="testnet" > ~/popm-address.json
     if [ $? -ne 0 ]; then
@@ -114,13 +114,13 @@ if [ "$choice" == "1" ]; then
         read -p "Have you requested faucet? (y/N): " faucet_requested
         if [[ "$faucet_requested" =~ ^[Yy]$ ]]; then
             priv_key=$(jq -r '.private_key' ~/popm-address.json)
-            read -p "Enter static fee (numerical only, recommended: 100-200): " static_fee
+            read -p "Enter fee (100-200): " static_fee
             echo
         fi
     fi
-elif [ "$choice" == "2" ]; then
-    read -p "Enter your Private key: " priv_key
-    read -p "Enter static fee (numerical only, recommended: 100-200): " static_fee
+elif [ "$choice" == "b" ]; then
+    read -p "Enter Private key: " priv_key
+    read -p "Enter fee (100-200): " static_fee
     echo
 fi
 
